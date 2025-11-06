@@ -14,8 +14,8 @@ Se mostrará por consola el valor en Ohms de cada resistencia analizada.
 ## Estructura del repositorio
 
 Clasificacion-Resistencias/
-
-│── clasificacion-resistencias.py
+│── input/ 
+│── clasificacion-resistencias.py         # Archivo
 ├── requirements.txt                      # Librerías necesarias para ejecutar el proyecto
 └── README.md                             # Documentación del ejercicio
 
@@ -23,60 +23,59 @@ Clasificacion-Resistencias/
 
 ## Flujo del algoritmo
 
-1. **Carga de imágenes**
-   - Lectura de las imágenes desde las carpetas `data/train` y `data/test`, organizadas por clase.
-   - Asignación automática de etiquetas a partir del nombre de la carpeta.
+### 1️⃣ Transformación de imágenes
+Cada imagen del conjunto de resistencias es cargada y convertida al espacio de color **HSV**.  
+Luego se segmenta el fondo azul aplicando un rango de color, generando una **máscara binaria** que resalta la zona de interés.  
 
-2. **Preprocesamiento**
-   - Redimensionado de imágenes a un tamaño fijo (por ejemplo, 64x64).
-   - Conversión a escala de grises o espacio de color adecuado (según el enfoque utilizado).
-   - Normalización de intensidades.
+Se aplican filtros **gaussianos** y operaciones morfológicas de **clausura y dilatación** para eliminar imperfecciones y unificar regiones.  
+A continuación, se detectan los **contornos** en la máscara y se selecciona el contorno más grande de forma rectangular, correspondiente al área de la resistencia.  
 
-3. **Extracción de características**
-   - Aplanado de la imagen (vector de píxeles) **y/o**
-   - Cálculo de descriptores (histogramas de color, momentos, etc.).
-
-4. **Entrenamiento del clasificador**
-   - División explícita entre entrenamiento y prueba (si no se usa la estructura train/test).
-   - Entrenamiento de un modelo de scikit-learn (por ejemplo, k-NN, SVM, RandomForest).
-
-5. **Evaluación**
-   - Cálculo de métricas de clasificación (accuracy, precision, recall, F1-score).
-   - Generación de la matriz de confusión.
-   - Visualización de algunos ejemplos correctamente y erróneamente clasificados.
-
-6. **Guardado del modelo (opcional)**
-   - Serialización del modelo con `joblib` o `pickle` en la carpeta `models/`.
+Si el rectángulo no es perfecto, se calcula el **rectángulo mínimo envolvente** y se reordenan los vértices (arriba-izquierda, arriba-derecha, abajo-derecha, abajo-izquierda) para aplicar una **transformación de perspectiva (homografía)**.  
+De esta forma, se obtiene una imagen rectificada, con la resistencia orientada frontalmente y almacenada en la carpeta `Resistencias_out/`.
 
 ---
 
-## Librerías utilizadas
+### 2️⃣ Detección de bandas de color
+Del cuerpo rectificado de la resistencia se extrae automáticamente la región central mediante una máscara y una **proyección vertical** que limita los márgenes a la zona útil.  
 
-Las principales librerías utilizadas para este ejercicio son:
+Para detectar las bandas, se calcula el **gradiente vertical (Sobel)** y se proyecta sobre el eje X, identificando los **picos máximos** que corresponden a los bordes de las bandas de color.  
+Luego, para cada banda detectada, se toma una **franja vertical** alrededor de su centro y se calcula el **color dominante** comparando el promedio HSV con los rangos predefinidos de los colores estándar:  
+negro, marrón, rojo, naranja, amarillo, verde, azul, violeta, gris, blanco, plata y dorado.
 
-- `opencv-python` – lectura y preprocesamiento de imágenes
-- `numpy` – operaciones matriciales
-- `matplotlib` – visualización de imágenes y resultados
-- `scikit-learn` – modelos de clasificación y métricas
-- `seaborn` (opcional) – visualización de la matriz de confusión
-
-Ejemplo de `requirements.txt`:
-
-opencv-python  
-numpy  
-matplotlib  
-scikit-learn  
-seaborn  
-
-Si querés fijar versiones, podés usar algo como:
-
-opencv-python==4.9.0.80  
-numpy==1.26.4  
-matplotlib==3.8.4  
-scikit-learn==1.4.2  
-seaborn==0.13.2  
+El sistema devuelve la secuencia de colores identificados para cada resistencia procesada.
 
 ---
+
+### 3️⃣ Cálculo del valor de la resistencia
+Se interpreta la secuencia de colores detectada según el **código de colores de resistencias**.  
+- Los **dos primeros colores** representan los dígitos significativos.  
+- El **tercer color** indica el multiplicador.  
+- La **cuarta banda (dorado o plateado)** representa la tolerancia, pero no se incluye en el valor nominal.  
+
+El valor calculado se formatea automáticamente en:
+- **MΩ** si es ≥ 1.000.000 Ω  
+- **kΩ** si es ≥ 1.000 Ω  
+- **Ω** en caso contrario.  
+
+Finalmente, el programa imprime el resultado por consola, mostrando el **valor estimado en ohmios** y la **combinación de colores detectados** para cada imagen.
+
+---
+## Estrcutura del repositorio
+
+```
+PDI-TP2-Clasificacion-Resistencias/
+│
+├── imagenes/ # Carpeta con las imágenes de resistencias
+│ ├── R1_a.jpg
+│ ├── R2_a.jpg
+│ ├── ...
+│
+├── clasificacion_resistencias.py # Script principal del proyecto
+├── requirements.txt # Dependencias necesarias
+└── README.md # Documentación del proyecto
+```
+---
+
 
 ## Ejecución del proyecto con entorno virtual
 
